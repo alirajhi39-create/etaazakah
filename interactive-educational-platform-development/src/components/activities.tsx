@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import LessonImage from "@/components/LessonImage";
 import {
   EVIDENCE,
   EVALUATION,
@@ -510,7 +511,7 @@ export function WarningActivity({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-sand-200 bg-white">
-        <img src="/images/zakat-warning.webp" alt="ثلاث صور: أرض خضراء، وأرض قاحلة، ومطر ينزل" width={1600} height={533} loading="lazy" decoding="async" className="h-auto w-full object-cover" />
+        <LessonImage name="zakat-warning" alt="ثلاث صور: أرض خضراء، وأرض قاحلة، ومطر ينزل" width={1600} height={533} className="h-auto w-full object-cover" />
         <div className="grid gap-2 p-3 sm:grid-cols-3">
           {WARNING.images.map((image) => (
             <button

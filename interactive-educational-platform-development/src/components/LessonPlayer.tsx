@@ -27,6 +27,7 @@ import {
 } from "@/components/activities";
 import { EVIDENCE, LESSON_META, MEANING, SLIDES, TOTAL_SLIDES, getSlide, type SlideKind } from "@/lib/lesson";
 import { playSfx, sfxKindFor } from "@/lib/sfx";
+import LessonImage from "@/components/LessonImage";
 import { evaluateCertificate } from "@/lib/certificate";
 import { NARRATION_PROFILE, isSpeechSupported, prepareForSpeech, rankArabicVoices, splitForSpeech } from "@/lib/tts";
 import type { SoundMeta, StudentRecord } from "@/lib/types";
@@ -400,7 +401,7 @@ export default function LessonPlayer({ student, sounds, saveState, onChange, onE
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <img src="/images/zakat-hero.webp" alt="أطفال يضعون الصدقة في صندوق الزكاة" width={1600} height={1067} loading="lazy" decoding="async" className="w-full rounded-[1.75rem] border-4 border-gold-200 shadow-sticker" />
+                    <LessonImage name="zakat-hero" alt="أطفال يضعون الصدقة في صندوق الزكاة" width={1600} height={1067} className="w-full rounded-[1.75rem] border-4 border-gold-200 shadow-sticker" />
                     <BrainstormActivity value={activities.brainstorm as BrainstormValue | undefined} onChange={(next) => update("brainstorm", next)} />
                   </div>
                 </div>

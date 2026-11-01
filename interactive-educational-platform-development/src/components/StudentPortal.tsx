@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import LessonImage from "@/components/LessonImage";
 import LessonPlayer from "@/components/LessonPlayer";
 
 import { CLASS_OPTIONS } from "@/lib/classes";
@@ -224,7 +225,7 @@ export default function StudentPortal() {
           <div className="flex items-center gap-2">
             <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-700 text-2xl text-gold-200 shadow">🕌</span>
             <div>
-              <p className="font-display text-base leading-6 text-brand-900">منصة العروس الابتدائية</p>
+              <p className="font-display text-base leading-6 text-brand-900">مدرسة العروس الابتدائية</p>
               <p className="text-xs font-bold text-brand-600">{LESSON_META.lessonNumber} · {LESSON_META.grade}</p>
             </div>
           </div>
@@ -385,7 +386,7 @@ export default function StudentPortal() {
 
             <div className="order-1 lg:order-2">
               <div className="relative overflow-hidden rounded-[1.75rem] border border-sand-200 bg-gradient-to-bl from-sand-100 to-brand-50">
-                <img src="/images/zakat-hero.webp" alt="أطفال يشاركون في إيتاء الزكاة" width={1600} height={1067} loading="eager" decoding="async" className="h-full w-full object-cover" />
+                <LessonImage name="zakat-hero" alt="أطفال يشاركون في إيتاء الزكاة" width={1600} height={1067} eager className="h-full w-full object-cover" />
                 <div className="absolute bottom-3 right-3 left-3 flex flex-wrap gap-2">
                   <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-extrabold text-brand-800 shadow">
                     ⭐ {TOTAL_SLIDES} شرائح تفاعلية

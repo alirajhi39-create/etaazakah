@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { evaluateCertificate } from "@/lib/certificate";
+import { APP_VERSION } from "@/lib/version";
 import { CLASS_OPTIONS } from "@/lib/classes";
 import { LESSON_META, SOUND_SLOTS, TOTAL_SLIDES } from "@/lib/lesson";
 import type { SoundMeta, StudentRecord, TeacherReport } from "@/lib/types";
@@ -54,6 +55,7 @@ export default function TeacherDashboard() {
   const [passcodeInput, setPasscodeInput] = useState("");
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authDiag, setAuthDiag] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
 
   const [report, setReport] = useState<TeacherReport | null>(null);
@@ -108,34 +110,50 @@ export default function TeacherDashboard() {
     }
   }, []);
 
-  const verifyAndStore = useCallback(async (rawCode: string) => {
+  const verifyAndStore = useCallback(async (rawCode: string): Promise<{ ok: boolean; reason?: "wrong" | "server" | "network"; detail?: string }> => {
     const code = rawCode
       .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
       .replace(/\s+/g, "")
       .trim();
-    if (!code) return false;
+    if (!code) return { ok: false, reason: "wrong" };
     try {
       const response = await fetch("/api/teacher/auth", {
         method: "POST",
+        cache: "no-store",
         headers: { "Content-Type": "application/json", "x-teacher-passcode": code },
         body: JSON.stringify({ passcode: code }),
       });
       if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        if (response.status !== 401) {
-          setAuthError(payload.error ?? "تعذّر التحقق من الخادم، حاول لاحقًا.");
-        }
-        return false;
+        const payload = (await response.json().catch(() => ({}))) as { error?: string; hint?: string };
+        if (response.status === 401) return { ok: false, reason: "wrong" };
+        return { ok: false, reason: "server", detail: payload.error ?? payload.hint ?? `HTTP ${response.status}` };
       }
       window.sessionStorage.setItem(PASSCODE_KEY, code);
       window.localStorage.setItem(PASSCODE_KEY, code);
       setPasscode(code);
       setPasscodeInput("");
+      setAuthError(null);
+      setAuthDiag(null);
       setAuthed(true);
-      return true;
-    } catch {
-      return false;
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, reason: "network", detail: error instanceof Error ? error.message : undefined };
     }
+  }, []);
+
+  const explainAuthFailure = useCallback((result: { reason?: "wrong" | "server" | "network"; detail?: string }) => {
+    if (result.reason === "server") {
+      setAuthError(`تعذّر التحقق من الخادم (${result.detail ?? "خطأ في الخادم"}).`);
+      setAuthDiag("الخادم يعمل لكن واجهة التحقق أعادت خطأً. تحقق من متغيرات البيئة في Vercel ثم افتح /api/health لتشخيص الحالة.");
+      return;
+    }
+    if (result.reason === "network") {
+      setAuthError("تعذّر الاتصال بالخادم — تحقق من اتصال الإنترنت ثم أعد المحاولة.");
+      setAuthDiag("لم يصل الطلب إلى الخادم. تأكد من اكتمال النشر (Deployment Ready) في لوحة Vercel.");
+      return;
+    }
+    setAuthError("رمز الدخول غير صحيح، حاول مرة أخرى.");
+    setAuthDiag(null);
   }, []);
 
   useEffect(() => {
@@ -144,17 +162,18 @@ export default function TeacherDashboard() {
     const stored = url.searchParams.get("p") ?? window.localStorage.getItem(PASSCODE_KEY) ?? window.sessionStorage.getItem(PASSCODE_KEY);
     const candidate = fromUrl ?? stored;
     if (!candidate) return;
-    void verifyAndStore(candidate).then((ok) => {
-      if (!ok) {
+    void verifyAndStore(candidate).then((result) => {
+      if (!result.ok) {
         window.localStorage.removeItem(PASSCODE_KEY);
-        setAuthError("انتهت صلاحية الجلسة، يرجى إدخال رمز الدخول من جديد.");
+        if (result.reason === "wrong") setAuthError("انتهت صلاحية الجلسة، يرجى إدخال رمز الدخول من جديد.");
+        else explainAuthFailure(result);
       } else if (fromUrl) {
         url.searchParams.delete("passcode");
         url.searchParams.delete("p");
         window.history.replaceState({}, "", url.toString());
       }
     });
-  }, [verifyAndStore]);
+  }, [verifyAndStore, explainAuthFailure]);
 
   const loadDbStatus = useCallback(async () => {
     try {
@@ -506,7 +525,10 @@ export default function TeacherDashboard() {
               </div>
 
               {authError ? (
-                <p className="rounded-2xl border border-[#fecdca] bg-[#fff5f5] px-3 py-2 text-center text-sm font-bold text-[#b42318]">{authError}</p>
+                <div className="rounded-2xl border border-[#fecdca] bg-[#fff5f5] px-3 py-2 text-center">
+                  <p className="text-sm font-bold text-[#b42318]">{authError}</p>
+                  {authDiag ? <p className="mt-1 text-xs font-bold leading-6 text-[#b42318]/80">{authDiag}</p> : null}
+                </div>
               ) : null}
 
               <button
@@ -518,7 +540,11 @@ export default function TeacherDashboard() {
                 {authBusy ? "جارٍ التحقق…" : "🔓 دخول لوحة التحكم"}
               </button>
 
-              <Link className="btn btn-ghost w-full !text-sm" href="/">← العودة إلى درس الطالب</Link>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link className="btn btn-ghost !text-sm" href="/">← العودة إلى درس الطالب</Link>
+                <a className="btn btn-ghost !text-sm" href="/api/health" target="_blank" rel="noreferrer">🩺 تشخيص النظام</a>
+              </div>
+              <p className="text-center text-[10px] font-bold text-brand-400" dir="ltr">{APP_VERSION}</p>
             </div>
           </div>
         </div>

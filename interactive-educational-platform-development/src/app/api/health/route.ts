@@ -1,4 +1,5 @@
 import { CORS_HEADERS, preflight } from "@/lib/http";
+import { APP_VERSION } from "@/lib/version";
 import { describeDatabaseTarget, isDbConfigured, pingDatabase } from "@/db";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ export async function GET() {
     {
       ok: configured && ping.ok,
       service: "zakat-lesson-platform",
+      version: APP_VERSION,
       database: {
         configured,
         connected: Boolean(ping.ok),

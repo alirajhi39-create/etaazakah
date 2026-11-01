@@ -10,6 +10,7 @@ import {
   readJson,
   teacherPasscodes,
 } from "@/lib/http";
+import { APP_VERSION } from "@/lib/version";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,7 @@ async function handleAuth(request: Request): Promise<Response> {
   return jsonResponse({
     ok: true,
     authorized: true,
+    version: APP_VERSION,
     passcodeConfigured: true,
     acceptedCodes: teacherPasscodes().length,
     teacher: "علي عبدالله راجحي",
