@@ -82,6 +82,9 @@ export default function TeacherDashboard() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<unknown>(null);
   const [diagBusy, setDiagBusy] = useState(false);
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; configured: boolean; hint?: string | null; host?: string | null; envKey?: string | null } | null>(null);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupResult, setSetupResult] = useState<string | null>(null);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -117,7 +120,13 @@ export default function TeacherDashboard() {
         headers: { "Content-Type": "application/json", "x-teacher-passcode": code },
         body: JSON.stringify({ passcode: code }),
       });
-      if (!response.ok) return false;
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        if (response.status !== 401) {
+          setAuthError(payload.error ?? "تعذّر التحقق من الخادم، حاول لاحقًا.");
+        }
+        return false;
+      }
       window.sessionStorage.setItem(PASSCODE_KEY, code);
       window.localStorage.setItem(PASSCODE_KEY, code);
       setPasscode(code);
@@ -147,9 +156,49 @@ export default function TeacherDashboard() {
     });
   }, [verifyAndStore]);
 
+  const loadDbStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/api/health", { cache: "no-store" });
+      const data = (await response.json()) as { database?: { connected?: boolean; configured?: boolean; error?: { hint?: string } | null; host?: string | null; envKey?: string | null } };
+      const database = data.database ?? {};
+      setDbStatus({
+        connected: Boolean(database.connected),
+        configured: Boolean(database.configured),
+        hint: database.error?.hint ?? null,
+        host: database.host ?? null,
+        envKey: database.envKey ?? null,
+      });
+    } catch {
+      setDbStatus({ connected: false, configured: false, hint: "تعذّر الوصول إلى /api/health" });
+    }
+  }, []);
+
+  const initializeDatabase = async () => {
+    setSetupBusy(true);
+    setSetupResult(null);
+    try {
+      const response = await fetch("/api/setup", { method: "POST", headers: { "x-teacher-passcode": passcode } });
+      const data = (await response.json()) as { ok?: boolean; executed?: number; error?: string; hint?: string; tables?: Record<string, boolean> };
+      if (!response.ok || !data.ok) {
+        setSetupResult(`تعذّرت التهيئة: ${data.error ?? "خطأ غير معروف"}${data.hint ? ` — ${data.hint}` : ""}`);
+        return;
+      }
+      setSetupResult(`تمت تهيئة قاعدة البيانات بنجاح (${data.executed ?? 0} أوامر) وتحقّق الجداول: ${Object.entries(data.tables ?? {}).map(([name, present]) => `${name}: ${present ? "موجود" : "غير موجود"}`).join(" · ")}`);
+      await loadDbStatus();
+      await loadReport();
+    } catch {
+      setSetupResult("تعذّر الاتصال بالخادم أثناء تهيئة قاعدة البيانات");
+    } finally {
+      setSetupBusy(false);
+    }
+  };
+
   useEffect(() => {
-    if (authed) void loadReport();
-  }, [authed, loadReport]);
+    if (authed) {
+      void loadReport();
+      void loadDbStatus();
+    }
+  }, [authed, loadReport, loadDbStatus]);
 
   const login = async () => {
     setAuthBusy(true);
@@ -540,6 +589,29 @@ export default function TeacherDashboard() {
             ))}
           </div>
 
+          {dbStatus && !dbStatus.connected ? (
+            <div className="rounded-2xl border-4 border-gold-300 bg-gold-50 p-4">
+              <p className="text-base font-extrabold text-gold-900">⚠️ قاعدة البيانات غير مربوطة بعد</p>
+              <p className="mt-1 text-sm font-bold leading-7 text-gold-800">
+                {dbStatus.configured
+                  ? `تم العثور على متغيّر الاتصال (${dbStatus.envKey ?? "DATABASE_URL"}) لكن الاتصال لم ينجح. ${dbStatus.hint ?? ""}`
+                  : "لم يُعثر على DATABASE_URL / POSTGRES_URL في متغيّرات بيئة Vercel. أضف رابط Neon المجمّع مع ?sslmode=require ثم أعد النشر."}
+              </p>
+              {dbStatus.host ? <p className="mt-1 text-xs font-bold text-gold-700">المضيف: {dbStatus.host}</p> : null}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" className="btn btn-primary !px-3 !py-1.5 text-xs" onClick={() => void initializeDatabase()} disabled={setupBusy}>
+                  {setupBusy ? "جارٍ التهيئة…" : "🛠️ تهيئة جداول قاعدة البيانات"}
+                </button>
+                <button type="button" className="btn btn-ghost !px-3 !py-1.5 text-xs" onClick={() => void loadDbStatus()}>🔄 إعادة الفحص</button>
+                <a className="btn btn-ghost !px-3 !py-1.5 text-xs" href="/api/health" target="_blank" rel="noreferrer">📋 تشخيص /api/health</a>
+              </div>
+            </div>
+          ) : null}
+
+          {setupResult ? (
+            <div className="rounded-2xl border border-[#a6f4c5] bg-[#ecfdf3] px-4 py-3 text-sm font-bold text-[#067647]">{setupResult}</div>
+          ) : null}
+
           {toast ? <div className="rounded-2xl border border-[#a6f4c5] bg-[#ecfdf3] px-4 py-3 text-sm font-bold text-[#067647]">{toast}</div> : null}
           {error ? (
             <div className="flex items-start justify-between gap-2 rounded-2xl border border-[#fecdca] bg-[#fff5f5] px-4 py-3 text-sm font-bold text-[#b42318]">
@@ -861,9 +933,15 @@ export default function TeacherDashboard() {
                     <h2 className="font-display text-xl text-brand-900">واجهة البرمجة والتشخيص</h2>
                     <p className="text-xs font-bold text-brand-600">هذه الصفحة متاحة داخل لوحة المعلم فقط، بعد تسجيل الدخول.</p>
                   </div>
-                  <button type="button" className="btn btn-primary mr-auto !px-4 !py-2 text-sm" onClick={() => void runDiagnostics()} disabled={diagBusy}>
-                    {diagBusy ? "جارٍ الفحص…" : "🧪 تشغيل الفحص التشخيصي"}
-                  </button>
+                  <div className="mr-auto flex flex-wrap gap-2">
+                    <button type="button" className="btn btn-primary !px-4 !py-2 text-sm" onClick={() => void initializeDatabase()} disabled={setupBusy}>
+                      {setupBusy ? "جارٍ التهيئة…" : "🛠️ تهيئة جداول Neon"}
+                    </button>
+                    <button type="button" className="btn btn-ghost !px-4 !py-2 text-sm" onClick={() => void runDiagnostics()} disabled={diagBusy}>
+                      {diagBusy ? "جارٍ الفحص…" : "🧪 الفحص التشخيصي"}
+                    </button>
+                    <a className="btn btn-ghost !px-4 !py-2 text-sm" href="/api/health" target="_blank" rel="noreferrer">📋 /api/health</a>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-3">

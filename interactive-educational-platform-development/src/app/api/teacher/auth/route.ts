@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, describeDbError, isDbConfigured } from "@/db";
 import { teacherNames } from "@/db/schema";
 import {
   errorResponse,
@@ -26,22 +26,38 @@ async function handleAuth(request: Request): Promise<Response> {
 
   if (!authorized) return errorResponse("رمز المعلم غير صحيح", 401);
 
-  try {
-    const pins = await db.select().from(teacherNames);
-    await db.execute(sql`select 1`);
-    return jsonResponse({
-      ok: true,
-      authorized: true,
-      passcodeConfigured: true,
-      acceptedCodes: teacherPasscodes().length,
-      teacher: "علي عبدالله راجحي",
-      school: "العروس الابتدائية",
-      pinnedNames: pins.filter((pin) => pin.locked).length,
-      capabilities: ["students:read", "students:write", "sounds:write", "reports:print"],
-    });
-  } catch (error) {
-    return errorResponse("تعذّر التحقق من الجلسة", 500, { detail: String(error) });
+  // الدخول لا يعتمد على قاعدة البيانات: يتم تفويض الرمز أولًا ثم تُقرأ الإحصاءات بأفضل جهد
+  let pinnedNames = 0;
+  let database: "connected" | "unavailable" | "not_configured" = "not_configured";
+  let databaseHint: string | null = null;
+
+  if (!isDbConfigured()) {
+    databaseHint = describeDbError(null).hint;
+  } else {
+    try {
+      const pins = await db.select().from(teacherNames);
+      pinnedNames = pins.filter((pin) => pin.locked).length;
+      await db.execute(sql`select 1`);
+      database = "connected";
+    } catch (error) {
+      const info = describeDbError(error);
+      database = "unavailable";
+      databaseHint = `${info.message} — ${info.hint}`;
+    }
   }
+
+  return jsonResponse({
+    ok: true,
+    authorized: true,
+    passcodeConfigured: true,
+    acceptedCodes: teacherPasscodes().length,
+    teacher: "علي عبدالله راجحي",
+    school: "العروس الابتدائية",
+    pinnedNames,
+    database,
+    databaseHint,
+    capabilities: ["students:read", "students:write", "sounds:write", "reports:print"],
+  });
 }
 
 export async function OPTIONS() {

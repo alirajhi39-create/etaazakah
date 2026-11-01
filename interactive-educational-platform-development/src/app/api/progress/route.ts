@@ -1,5 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { db } from "@/db";
+import { db, describeDbError, isDbConfigured } from "@/db";
 import { lessonProgress, lessonSounds, teacherNames } from "@/db/schema";
 import { CLASS_OPTIONS, cleanStudentName, isClassOption, normalizeClassName, normalizeName } from "@/lib/classes";
 import {
@@ -42,6 +42,15 @@ function toRecord(row: ProgressRow, pin?: PinRow): StudentRecord {
     locked: Boolean(pin?.locked),
     pinned: Boolean(pin?.locked),
   };
+}
+
+function dbUnavailable(error: unknown, fallback: string): Response {
+  const info = describeDbError(error);
+  const notConfigured = info.code === "db_not_configured";
+  return jsonResponse(
+    { ok: false, code: info.code, error: `${info.message}`, hint: info.hint, fallback },
+    { status: notConfigured ? 503 : 500 },
+  );
 }
 
 async function tableExists(table: string): Promise<boolean> {
@@ -122,6 +131,7 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
+  if (!isDbConfigured()) return dbUnavailable(null, "قراءة البيانات تحتاج ربط قاعدة البيانات");
   const url = new URL(request.url);
   const diagnose = url.searchParams.get("diagnose");
   const all = url.searchParams.get("all");
@@ -239,11 +249,12 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    return errorResponse("تعذّر قراءة بيانات التقدم", 500, { detail: String(error) });
+    return dbUnavailable(error, "قواعد التقدم تحتاج اتصال قاعدة البيانات");
   }
 }
 
 export async function POST(request: Request) {
+  if (!isDbConfigured()) return dbUnavailable(null, "حفظ التقدم يحتاج ربط قاعدة البيانات");
   const body = await readJson(request);
   try {
     const incomingId = String(body.studentId ?? "").trim();
@@ -303,11 +314,12 @@ export async function POST(request: Request) {
 
     return jsonResponse({ ok: true, saved: true, student: toRecord(saved, pin), pinned: Boolean(pin?.locked) });
   } catch (error) {
-    return errorResponse("تعذّر حفظ بيانات التقدم", 500, { detail: String(error) });
+    return dbUnavailable(error, "لم يُحفظ التقدم لأن قاعدة البيانات غير متاحة");
   }
 }
 
 export async function PATCH(request: Request) {
+  if (!isDbConfigured()) return dbUnavailable(null, "التعديل يحتاج ربط قاعدة البيانات");
   if (!isTeacherRequest(request)) {
     return errorResponse("غير مصرّح: رمز المعلم مطلوب لتعديل بيانات الطالب", 401);
   }
@@ -387,11 +399,12 @@ export async function PATCH(request: Request) {
 
     return jsonResponse({ ok: true, updated: true, unlocked: unlock, student: toRecord(saved, finalPin) });
   } catch (error) {
-    return errorResponse("تعذّر تحديث بيانات الطالب", 500, { detail: String(error) });
+    return dbUnavailable(error, "لم يتم التحديث لأن قاعدة البيانات غير متاحة");
   }
 }
 
 export async function DELETE(request: Request) {
+  if (!isDbConfigured()) return dbUnavailable(null, "الحذف يحتاج ربط قاعدة البيانات");
   if (!isTeacherRequest(request)) {
     return errorResponse("غير مصرّح: رمز المعلم مطلوب لحذف السجلات", 401);
   }
@@ -407,6 +420,6 @@ export async function DELETE(request: Request) {
     }
     return jsonResponse({ ok: true, deleted: deleted.length > 0, studentId, unpinned: unpin });
   } catch (error) {
-    return errorResponse("تعذّر حذف السجل", 500, { detail: String(error) });
+    return dbUnavailable(error, "لم يتم الحذف لأن قاعدة البيانات غير متاحة");
   }
 }

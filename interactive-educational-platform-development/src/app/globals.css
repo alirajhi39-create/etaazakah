@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-tajawal), "Tajawal", "Segoe UI", system-ui, sans-serif;
-  --font-display: var(--font-baloo), "Baloo Bhaijaan 2", var(--font-cairo), "Cairo", system-ui, sans-serif;
+  --font-sans: "Tajawal", "Cairo", "Noto Kufi Arabic", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Baloo Bhaijaan 2", "Cairo", "Tajawal", "Noto Kufi Arabic", "Segoe UI", system-ui, sans-serif;
 
   /* أخضر مرح */
   --color-brand-50: #eafaf1;

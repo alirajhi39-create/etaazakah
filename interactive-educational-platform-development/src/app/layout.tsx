@@ -1,28 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Baloo_Bhaijaan_2, Cairo, Tajawal } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
-
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "600", "700", "800", "900"],
-  variable: "--font-cairo",
-  display: "swap",
-});
-
-const baloo = Baloo_Bhaijaan_2({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-baloo",
-  display: "swap",
-});
-
-const tajawal = Tajawal({
-  subsets: ["arabic", "latin"],
-  weight: ["400", "500", "700", "800"],
-  variable: "--font-tajawal",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "إيتاء الزكاة | منصة العروس الابتدائية",
@@ -37,9 +15,23 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/**
+ * الخطوط تُحمّل عبر CSS في المتصفح (Cairo + Tajawal + Baloo Bhaijaan 2)
+ * بدل next/font حتى لا يعتمد بناء المشروع على الوصول إلى Google Fonts،
+ * مع بدائل نظام عربية واضحة إذا تعذّر تحميلها.
+ */
+const GOOGLE_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@400;500;600;700;800&family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${tajawal.variable} ${baloo.variable}`}>
+    <html lang="ar" dir="rtl">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link rel="stylesheet" href={GOOGLE_FONTS_HREF} />
+      </head>
       <body className="doodle-bg text-brand-950 antialiased">{children}</body>
     </html>
   );

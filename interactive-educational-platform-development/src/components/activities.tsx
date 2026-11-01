@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import {
   EVIDENCE,
@@ -511,13 +510,7 @@ export function WarningActivity({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-sand-200 bg-white">
-        <Image
-          src="/images/zakat-warning.webp"
-          alt="ثلاث صور: أرض خضراء، وأرض قاحلة، ومطر ينزل"
-          width={1920}
-          height={1280}
-          className="h-auto w-full object-cover"
-        />
+        <img src="/images/zakat-warning.webp" alt="ثلاث صور: أرض خضراء، وأرض قاحلة، ومطر ينزل" width={1600} height={533} loading="lazy" decoding="async" className="h-auto w-full object-cover" />
         <div className="grid gap-2 p-3 sm:grid-cols-3">
           {WARNING.images.map((image) => (
             <button

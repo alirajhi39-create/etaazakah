@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LessonPlayer from "@/components/LessonPlayer";
@@ -386,14 +385,7 @@ export default function StudentPortal() {
 
             <div className="order-1 lg:order-2">
               <div className="relative overflow-hidden rounded-[1.75rem] border border-sand-200 bg-gradient-to-bl from-sand-100 to-brand-50">
-                <Image
-                  src="/images/zakat-hero.webp"
-                  alt="أطفال يشاركون في إيتاء الزكاة"
-                  width={1920}
-                  height={1280}
-                  priority
-                  className="h-full w-full object-cover"
-                />
+                <img src="/images/zakat-hero.webp" alt="أطفال يشاركون في إيتاء الزكاة" width={1600} height={1067} loading="eager" decoding="async" className="h-full w-full object-cover" />
                 <div className="absolute bottom-3 right-3 left-3 flex flex-wrap gap-2">
                   <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-extrabold text-brand-800 shadow">
                     ⭐ {TOTAL_SLIDES} شرائح تفاعلية

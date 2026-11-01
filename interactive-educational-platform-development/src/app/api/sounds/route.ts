@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import { db } from "@/db";
+import { db, describeDbError } from "@/db";
 import { lessonSounds } from "@/db/schema";
 import { errorResponse, isTeacherRequest, jsonResponse, preflight } from "@/lib/http";
 import { SOUND_SLOTS } from "@/lib/lesson";
@@ -106,7 +106,8 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    return errorResponse("تعذّر جلب الأصوات", 500, { detail: String(error) });
+    const info = describeDbError(error);
+    return errorResponse(`${info.message} ${info.hint}`, 500, { code: info.code });
   }
 }
 
@@ -190,7 +191,8 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    return errorResponse("تعذّر رفع الملف الصوتي", 500, { detail: String(error) });
+    const info = describeDbError(error);
+    return errorResponse(`${info.message} ${info.hint}`, 500, { code: info.code });
   }
 }
 
@@ -206,6 +208,7 @@ export async function DELETE(request: Request) {
     const deleted = await db.delete(lessonSounds).where(eq(lessonSounds.soundKey, key)).returning({ soundKey: lessonSounds.soundKey });
     return jsonResponse({ ok: true, deleted: deleted.length > 0, key });
   } catch (error) {
-    return errorResponse("تعذّر حذف الصوت", 500, { detail: String(error) });
+    const info = describeDbError(error);
+    return errorResponse(`${info.message} ${info.hint}`, 500, { code: info.code });
   }
 }

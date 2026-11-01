@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -401,13 +400,7 @@ export default function LessonPlayer({ student, sounds, saveState, onChange, onE
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <Image
-                      src="/images/zakat-hero.webp"
-                      alt="أطفال يضعون الصدقة في صندوق الزكاة"
-                      width={1600}
-                      height={1067}
-                      className="w-full rounded-[1.75rem] border-4 border-gold-200 shadow-sticker"
-                    />
+                    <img src="/images/zakat-hero.webp" alt="أطفال يضعون الصدقة في صندوق الزكاة" width={1600} height={1067} loading="lazy" decoding="async" className="w-full rounded-[1.75rem] border-4 border-gold-200 shadow-sticker" />
                     <BrainstormActivity value={activities.brainstorm as BrainstormValue | undefined} onChange={(next) => update("brainstorm", next)} />
                   </div>
                 </div>
