@@ -36,8 +36,10 @@ export async function GET() {
         TEACHER_PASSCODE: Boolean(process.env.TEACHER_PASSCODE),
       },
       assets: {
-        heroImage: "/images/zakat-hero.webp",
-        warningImage: "/images/zakat-warning.webp",
+        mode: "inline-base64 (مضمّنة في الحزمة)",
+        heroImage: "embedded",
+        warningImage: "embedded",
+        filesAvailable: ["/images/zakat-hero.webp", "/images/zakat-hero.png", "/images/zakat-warning.webp", "/images/zakat-warning.png"],
       },
       timestamp: new Date().toISOString(),
     },

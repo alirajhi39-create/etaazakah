@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { HERO_ILLUSTRATION, WARNING_ILLUSTRATION } from "@/lib/illustrations";
 
 type Props = {
   name: "zakat-hero" | "zakat-warning";
@@ -11,14 +12,19 @@ type Props = {
   eager?: boolean;
 };
 
+const INLINE: Record<Props["name"], string> = {
+  "zakat-hero": HERO_ILLUSTRATION,
+  "zakat-warning": WARNING_ILLUSTRATION,
+};
+
 /**
- * صورة الدرس مع سلسلة بدائل مضمونة:
- * 1) صيغة WebP  2) صيغة PNG  3) رسم SVG مدمج (يظهر دائمًا حتى لو لم تُرفع الصور على الاستضافة)
+ * صورة الدرس بخلفية مضمّنة داخل الحزمة (base64) فلا تعتمد على أي ملف على الاستضافة
+ * ولا يظهر أبدًا رمز صورة مكسورة. هناك أيضًا طبقة SVG احتياطية عند فشل فك ترميز الصورة.
  */
 export default function LessonImage({ name, alt, width, height, className, eager = false }: Props) {
-  const [stage, setStage] = useState(0);
+  const [failed, setFailed] = useState(false);
 
-  if (stage >= 2) {
+  if (failed) {
     return (
       <div
         role="img"
@@ -27,41 +33,31 @@ export default function LessonImage({ name, alt, width, height, className, eager
         style={{ aspectRatio: `${width} / ${height}` }}
       >
         <svg viewBox="0 0 320 200" className="h-full w-full" aria-hidden="true">
-          <defs>
-            <linearGradient id={`sky-${name}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#d8f1e6" />
-              <stop offset="100%" stopColor="#fff9e6" />
-            </linearGradient>
-          </defs>
-          <rect width="320" height="200" fill={`url(#sky-${name})`} rx="16" />
-          <circle cx="262" cy="40" r="20" fill="#ffce45" opacity="0.85" />
-          <path d="M40 120h240v46a10 10 0 0 1-10 10H50a10 10 0 0 1-10-10z" fill="#0a6849" />
-          <path d="M75 120V96a85 85 0 0 1 170 0v24" fill="none" stroke="#0b8259" strokeWidth="8" strokeLinecap="round" />
-          <circle cx="160" cy="150" r="12" fill="#ffce45" />
-          <circle cx="120" cy="150" r="8" fill="#ffe285" />
-          <circle cx="200" cy="150" r="8" fill="#ffe285" />
-          <path d="M40 60c14 0 14-16 28-16s14 16 28 16" fill="none" stroke="#63d4a2" strokeWidth="4" strokeLinecap="round" opacity="0.7" />
-          <ellipse cx="95" cy="176" rx="26" ry="7" fill="#0a533b" opacity="0.25" />
-          <ellipse cx="225" cy="176" rx="26" ry="7" fill="#0a533b" opacity="0.25" />
-          <circle cx="95" cy="132" r="14" fill="#ffb81c" opacity="0.9" />
-          <circle cx="225" cy="132" r="14" fill="#ffb81c" opacity="0.9" />
+          <rect width="320" height="200" fill="#eafaf1" rx="14" />
+          <circle cx="258" cy="42" r="18" fill="#ffce45" opacity="0.9" />
+          <path d="M60 118V96a80 80 0 0 1 160 0v22" fill="none" stroke="#0b8259" strokeWidth="7" strokeLinecap="round" />
+          <rect x="48" y="118" width="184" height="52" rx="10" fill="#0a6849" />
+          <circle cx="118" cy="146" r="9" fill="#ffce45" />
+          <circle cx="140" cy="146" r="9" fill="#ffe285" />
+          <circle cx="162" cy="146" r="9" fill="#ffe285" />
+          <circle cx="266" cy="150" r="16" fill="#ffb81c" />
+          <circle cx="266" cy="150" r="9" fill="#fff9e6" />
         </svg>
       </div>
     );
   }
 
-  const src = stage === 0 ? `/images/${name}.webp` : `/images/${name}.png`;
-
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={src}
+      src={INLINE[name]}
       alt={alt}
       width={width}
       height={height}
       loading={eager ? "eager" : "lazy"}
-      decoding="async"
-      onError={() => setStage((current) => current + 1)}
+      fetchPriority={eager ? "high" : "auto"}
+      draggable={false}
+      onError={() => setFailed(true)}
       className={className}
     />
   );

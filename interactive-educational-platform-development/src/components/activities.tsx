@@ -580,7 +580,9 @@ export function WarningActivity({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-sand-200 bg-white">
-        <LessonImage name="zakat-warning" alt="ثلاث صور: أرض خضراء، وأرض قاحلة، ومطر ينزل" width={1600} height={533} className="h-auto w-full object-cover" />
+        <div className="relative aspect-[3/1] w-full overflow-hidden bg-gradient-to-bl from-brand-100 via-sand-100 to-gold-100">
+          <LessonImage name="zakat-warning" alt="ثلاث صور: أرض خضراء، وأرض قاحلة، ومطر ينزل" width={1600} height={533} className="absolute inset-0 h-full w-full object-cover" />
+        </div>
         <div className="grid gap-2 p-3 sm:grid-cols-3">
           {WARNING.images.map((image) => (
             <button

@@ -80,6 +80,8 @@ export default function TeacherDashboard() {
   const [newName, setNewName] = useState("");
   const [newClass, setNewClass] = useState<string>(CLASS_OPTIONS[0]);
   const [addBusy, setAddBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
 
   const [uploading, setUploading] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<unknown>(null);
@@ -356,34 +358,49 @@ export default function TeacherDashboard() {
     }
   };
 
+  const newStudentId = () => {
+    // crypto.randomUUID يحتاج سياقًا آمنًا (https) — نستخدم بديلًا آمنًا عند الحاجة
+    const globalCrypto = typeof window !== "undefined" ? window.crypto : undefined;
+    if (globalCrypto && typeof globalCrypto.randomUUID === "function") return globalCrypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (globalCrypto && typeof globalCrypto.getRandomValues === "function") globalCrypto.getRandomValues(bytes);
+    else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  };
+
   const addStudent = async () => {
     const cleanName = newName.replace(/\s+/g, " ").trim();
     if (cleanName.length < 3) {
-      setError("اسم الطالب يجب أن يكون ٣ أحرف على الأقل");
+      setAddError("اسم الطالب يجب أن يكون ٣ أحرف على الأقل");
       return;
     }
     setAddBusy(true);
-    setError(null);
+    setAddError(null);
+    setAddSuccess(null);
     try {
+      const studentId = newStudentId();
       const response = await fetch("/api/progress", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "x-teacher-passcode": passcode },
         body: JSON.stringify({
-          studentId: crypto.randomUUID(),
+          studentId,
           studentName: cleanName,
           className: newClass,
           locked: true,
           create: true,
         }),
       });
-      const data = (await response.json()) as { ok?: boolean; error?: string };
-      if (!response.ok || !data.ok) throw new Error(data.error ?? "تعذّر إضافة الطالب");
-      setAdding(false);
+      const data = (await response.json()) as { ok?: boolean; error?: string; hint?: string };
+      if (!response.ok || !data.ok) throw new Error(`${data.error ?? "تعذّر إضافة الطالب"}${data.hint ? ` — ${data.hint}` : ""}`);
+      setAddSuccess(`تمت إضافة «${cleanName}» إلى الفصل ${newClass.split("/")[1]} وتثبيت اسمه وفصله ✓`);
       setNewName("");
       notify("تمت إضافة الطالب وتثبيت اسمه وفصله ✓");
       await loadReport();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "تعذّر إضافة الطالب");
+      const message = caught instanceof Error ? caught.message : "تعذّر إضافة الطالب";
+      setAddError(message);
+      setError(message);
     } finally {
       setAddBusy(false);
     }
@@ -655,7 +672,7 @@ export default function TeacherDashboard() {
                     <h2 className="font-display text-xl text-brand-900">🏫 اختر الفصل لعرض تقريره</h2>
                     <p className="text-sm font-bold text-brand-600">اضغط على بطاقة الفصل لتصفية التقارير، أو اختر «كل الفصول».</p>
                   </div>
-                  <button type="button" className="btn btn-primary !px-4 !py-2 text-sm" onClick={() => setAdding(true)}>
+                  <button type="button" className="btn btn-primary !px-4 !py-2 text-sm" onClick={() => { setAdding(true); setNewName(""); setAddError(null); setAddSuccess(null); }}>
                     ➕ إضافة طالب وتثبيت اسمه
                   </button>
                 </div>
@@ -1229,6 +1246,58 @@ export default function TeacherDashboard() {
           );
         })}
       </div>
+
+      {adding ? (
+        <div className="screen-only fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-brand-950/60 px-4 py-6">
+          <div className="card animate-pop w-full max-w-md !rounded-[1.75rem] p-5">
+            <h3 className="font-display text-xl text-brand-900">إضافة طالب وتثبيت اسمه</h3>
+            <p className="mb-3 text-sm font-bold leading-6 text-brand-500">
+              سيُثبّت الاسم والفصل في سجل المعلم، وعند دخول الطالب باسمه سيستأنف سجله تلقائيًا ولا يستطيع تغييرهما.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="label" htmlFor="add-name">اسم الطالب</label>
+                <input
+                  id="add-name"
+                  className="field"
+                  placeholder="الاسم الكامل"
+                  value={newName}
+                  maxLength={80}
+                  onChange={(event) => setNewName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void addStudent();
+                  }}
+                />
+              </div>
+              <div>
+                <span className="label">الفصل</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {CLASS_OPTIONS.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setNewClass(option)}
+                      className={`rounded-2xl border-4 px-3 py-2 text-sm font-extrabold transition ${
+                        newClass === option ? "border-brand-400 bg-brand-50 text-brand-900" : "border-sand-200 bg-white text-brand-700"
+                      }`}
+                    >
+                      الفصل {option.split("/")[1]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {addError ? <p className="mt-3 rounded-2xl border border-[#fecdca] bg-[#fff5f5] px-3 py-2 text-sm font-bold text-[#b42318]">{addError}</p> : null}
+            {addSuccess ? <p className="mt-3 rounded-2xl border border-[#a6f4c5] bg-[#ecfdf3] px-3 py-2 text-sm font-bold text-[#067647]">{addSuccess}</p> : null}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <button type="button" className="btn btn-ghost" onClick={() => { setAdding(false); setAddError(null); }} disabled={addBusy}>إغلاق</button>
+              <button type="button" className="btn btn-primary !px-5 !py-2.5" onClick={() => void addStudent()} disabled={addBusy}>
+                {addBusy ? "جارٍ الإضافة…" : "إضافة وتثبيت"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {editing ? (
         <div className="screen-only fixed inset-0 z-50 grid place-items-center bg-brand-950/50 px-4 py-6">

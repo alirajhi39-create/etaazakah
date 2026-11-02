@@ -401,7 +401,9 @@ export default function LessonPlayer({ student, sounds, saveState, onChange, onE
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <LessonImage name="zakat-hero" alt="أطفال يضعون الصدقة في صندوق الزكاة" width={1600} height={1067} className="w-full rounded-[1.75rem] border-4 border-gold-200 shadow-sticker" />
+                    <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[1.75rem] border-4 border-gold-200 bg-gradient-to-bl from-brand-100 via-sand-100 to-gold-100 shadow-sticker">
+                      <LessonImage name="zakat-hero" alt="أطفال يضعون الصدقة في صندوق الزكاة" width={1600} height={1067} eager className="absolute inset-0 h-full w-full object-cover" />
+                    </div>
                     <BrainstormActivity value={activities.brainstorm as BrainstormValue | undefined} onChange={(next) => update("brainstorm", next)} />
                   </div>
                 </div>

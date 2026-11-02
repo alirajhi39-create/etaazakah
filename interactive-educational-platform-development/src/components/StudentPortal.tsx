@@ -385,8 +385,8 @@ export default function StudentPortal() {
             </div>
 
             <div className="order-1 lg:order-2">
-              <div className="relative overflow-hidden rounded-[1.75rem] border border-sand-200 bg-gradient-to-bl from-sand-100 to-brand-50">
-                <LessonImage name="zakat-hero" alt="أطفال يشاركون في إيتاء الزكاة" width={1600} height={1067} eager className="h-full w-full object-cover" />
+              <div className="relative aspect-[3/2] overflow-hidden rounded-[1.75rem] border border-sand-200 bg-gradient-to-bl from-brand-100 via-sand-100 to-gold-100">
+                <LessonImage name="zakat-hero" alt="أطفال يشاركون في إيتاء الزكاة" width={1600} height={1067} eager className="absolute inset-0 h-full w-full object-cover" />
                 <div className="absolute bottom-3 right-3 left-3 flex flex-wrap gap-2">
                   <span className="rounded-full bg-white/95 px-3 py-1 text-[11px] font-extrabold text-brand-800 shadow">
                     ⭐ {TOTAL_SLIDES} شرائح تفاعلية
