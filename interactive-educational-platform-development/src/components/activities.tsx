@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import LessonImage from "@/components/LessonImage";
+import { shuffleItems, shuffleOptions } from "@/lib/shuffle";
 import {
   EVIDENCE,
   EVALUATION,
@@ -128,15 +129,18 @@ export function ChoiceActivity({
 }) {
   const selected = value?.selected ?? null;
   const checked = Boolean(value?.checked);
+  // خلط الإجابات مرة واحدة بشكل ثابت حتى لا تكون الإجابة الصحيحة دائمًا في الأول
+  const ordered = shuffleOptions(options, correctIndex, `${id}::${question}`);
+  const correct = ordered.correctIndex;
   return (
     <div className="act-card space-y-3">
       <span className="act-title">✍️ {title}</span>
       <p className="text-base font-extrabold leading-8 text-brand-900">{question}</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        {options.map((option, index) => {
+        {ordered.options.map((option, index) => {
           const isSelected = selected === index;
           const cls = checked
-            ? index === correctIndex
+            ? index === correct
               ? "tile-correct"
               : isSelected
                 ? "tile-wrong"
@@ -167,7 +171,7 @@ export function ChoiceActivity({
           disabled={selected === null}
           onClick={() => {
             onChange({ selected, checked: true });
-            playSound(selected === correctIndex ? "correct" : "wrong");
+            playSound(selected === correct ? "correct" : "wrong");
           }}
         >
           تحقّق من الإجابة
@@ -178,8 +182,8 @@ export function ChoiceActivity({
             ↺ إعادة المحاولة
           </button>
           <div className="grow">
-            <Feedback tone={selected === correctIndex ? "success" : "error"}>
-              {selected === correctIndex ? feedback : "ليست الإجابة الصحيحة، راجع الشريحة ثم أعد المحاولة."}
+            <Feedback tone={selected === correct ? "success" : "error"}>
+              {selected === correct ? feedback : "ليست الإجابة الصحيحة، راجع الشريحة ثم أعد المحاولة."}
             </Feedback>
           </div>
         </div>
@@ -360,9 +364,41 @@ export function SincerityActivity({
 }) {
   const answers = value?.answers ?? {};
   const checked = Boolean(value?.checked);
-  const [picked, setPicked] = useState<string | null>(null);
-  const unassigned = SINCERITY.items.filter((item) => !answers[item.id]);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [hoverBin, setHoverBin] = useState<string | null>(null);
+
+  // ترتيب البطاقات مختلط بشكل ثابت مع خلط مواضع السلال
+  const cards = shuffleItems(SINCERITY.items, "sincerity-cards");
+  const bins = shuffleItems(SINCERITY.bins, "sincerity-bins");
+  const unassigned = cards.filter((item) => !answers[item.id]);
   const score = SINCERITY.items.filter((item) => answers[item.id] === item.bin).length;
+
+  const assign = (itemId: string, binId: string) => {
+    if (checked) return;
+    playSound("select");
+    onChange({
+      ...(value ?? { selected: null, choiceChecked: false }),
+      answers: { ...answers, [itemId]: binId },
+      checked: false,
+    });
+    setDragging(null);
+    setHoverBin(null);
+  };
+
+  const unassign = (itemId: string) => {
+    if (checked) return;
+    playSound("tap");
+    onChange({
+      ...(value ?? { selected: null, choiceChecked: false }),
+      answers: { ...answers, [itemId]: "" },
+      checked: false,
+    });
+  };
+
+  const binTones = [
+    { border: "border-brand-300", bg: "bg-brand-50/70", ring: "ring-brand-300", chip: "bg-brand-600" },
+    { border: "border-gold-300", bg: "bg-gold-50/70", ring: "ring-gold-400", chip: "bg-gold-500" },
+  ];
 
   return (
     <div className="space-y-4">
@@ -370,62 +406,83 @@ export function SincerityActivity({
         <p className="font-display text-lg leading-8 text-brand-900">{SINCERITY.statement}</p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        {SINCERITY.bins.map((bin) => {
-          const items = SINCERITY.items.filter((item) => answers[item.id] === bin.id);
+      {/* السلال: مناطق الإفلات */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {bins.map((bin, index) => {
+          const tone = binTones[index % binTones.length];
+          const items = cards.filter((item) => answers[item.id] === bin.id);
+          const isHover = hoverBin === bin.id;
           return (
-            <button
+            <div
               key={bin.id}
-              type="button"
-              onClick={() => {
-                if (!picked || checked) return;
-                playSound("select");
-                onChange({ ...(value ?? { selected: null, choiceChecked: false }), answers: { ...answers, [picked]: bin.id }, checked: false });
-                setPicked(null);
+              onDragOver={(event) => {
+                if (checked) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                setHoverBin(bin.id);
               }}
-              className={`min-h-32 rounded-[1.75rem] border-4 border-dashed p-3 text-right transition ${
-                bin.id === "ikhlas" ? "border-brand-200 bg-brand-50/60" : "border-gold-300 bg-gold-50/60"
-              } ${picked && !checked ? "ring-2 ring-brand-300 ring-offset-2" : ""}`}
+              onDragLeave={() => setHoverBin((current) => (current === bin.id ? null : current))}
+              onDrop={(event) => {
+                event.preventDefault();
+                const itemId = event.dataTransfer.getData("text/plain") || dragging;
+                if (itemId) assign(itemId, bin.id);
+              }}
+              onClick={() => {
+                if (dragging) assign(dragging, bin.id);
+              }}
+              className={`min-h-36 rounded-[1.75rem] border-4 border-dashed p-3 text-right transition ${tone.border} ${tone.bg} ${
+                isHover || (dragging && !checked) ? `ring-4 ${tone.ring} ring-offset-2` : ""
+              }`}
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-base font-extrabold text-brand-900">{bin.icon} {bin.label}</span>
+                <span className="text-lg font-extrabold text-brand-900">{bin.icon} {bin.label}</span>
                 <span className="rounded-full bg-white px-2.5 py-0.5 text-sm font-extrabold text-brand-700 shadow-sm">{toArabicDigits(items.length)}</span>
               </div>
               <p className="mb-2 text-sm font-bold text-brand-500">{bin.hint}</p>
               <div className="flex flex-col gap-2">
+                {items.length === 0 ? (
+                  <span className="rounded-2xl border-2 border-dashed border-current/30 px-3 py-4 text-center text-sm font-extrabold text-brand-400">
+                    ⬇️ أفلت البطاقة هنا
+                  </span>
+                ) : null}
                 {items.map((item) => {
                   const isRight = answers[item.id] === item.bin;
                   return (
-                    <span
+                    <button
                       key={item.id}
-                      role="button"
-                      tabIndex={0}
+                      type="button"
+                      draggable={!checked}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData("text/plain", item.id);
+                        event.dataTransfer.effectAllowed = "move";
+                        setDragging(item.id);
+                      }}
+                      onDragEnd={() => {
+                        setDragging(null);
+                        setHoverBin(null);
+                      }}
                       onClick={(event) => {
                         event.stopPropagation();
-                        if (!checked) onChange({ ...(value ?? { selected: null, choiceChecked: false }), answers: { ...answers, [item.id]: "" }, checked: false });
+                        unassign(item.id);
                       }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !checked) {
-                          onChange({ ...(value ?? { selected: null, choiceChecked: false }), answers: { ...answers, [item.id]: "" }, checked: false });
-                        }
-                      }}
-                      className={`rounded-2xl border bg-white px-2 py-1 text-sm font-bold ${
+                      className={`cursor-grab rounded-2xl border-2 bg-white px-3 py-2 text-right text-sm font-bold active:cursor-grabbing ${
                         checked ? (isRight ? "border-[#12b76a] text-[#067647]" : "border-[#f04438] text-[#b42318]") : "border-sand-300 text-brand-800"
                       }`}
                     >
-                      {item.icon} {item.label} {checked ? (isRight ? "✓" : "✗") : "×"}
-                    </span>
+                      {item.icon} {item.label} {checked ? (isRight ? "✓" : "✗") : "↩"}
+                    </button>
                   );
                 })}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
 
+      {/* البطاقات المتبقية القابلة للسحب */}
       <div className="act-card !p-3">
-        <p className="mb-2 text-sm font-extrabold text-brand-700">
-          {unassigned.length ? "اضغط على العبارة ثم على مكانها المناسب:" : "تم تصنيف كل العبارات 🎉"}
+        <p className="mb-2 text-base font-extrabold text-brand-700">
+          {unassigned.length ? "✋ اسحب البطاقة وأفلتها في المكان المناسب:" : "تم تصنيف كل العبارات 🎉"}
         </p>
         <div className="flex flex-wrap gap-2">
           {unassigned.map((item) => (
@@ -433,15 +490,26 @@ export function SincerityActivity({
               key={item.id}
               type="button"
               disabled={checked}
-              onClick={() => setPicked(item.id)}
-              className={`tile-option rounded-2xl border-2 px-2.5 py-1.5 text-sm font-extrabold ${
-                picked === item.id ? "tile-active" : "border-sand-200 bg-sand-50 text-brand-800"
+              draggable={!checked}
+              onDragStart={(event) => {
+                event.dataTransfer.setData("text/plain", item.id);
+                event.dataTransfer.effectAllowed = "move";
+                setDragging(item.id);
+              }}
+              onDragEnd={() => {
+                setDragging(null);
+                setHoverBin(null);
+              }}
+              onClick={() => setDragging(item.id)}
+              className={`cursor-grab rounded-2xl border-2 px-3 py-2 text-sm font-extrabold transition active:cursor-grabbing ${
+                dragging === item.id ? "tile-active border-brand-400 ring-2 ring-brand-200" : "border-sand-200 bg-sand-50 text-brand-800 hover:border-brand-300"
               }`}
             >
-              {item.icon} {item.label}
+              <span className="ml-1 text-brand-400">⠿</span> {item.icon} {item.label}
             </button>
           ))}
         </div>
+        <p className="mt-2 text-xs font-bold text-brand-400">على الجوال يمكنك الضغط على البطاقة ثم الضغط على السلة.</p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -458,7 +526,8 @@ export function SincerityActivity({
             type="button"
             className="kid-btn kid-btn-plain !px-4 !py-2 !text-sm"
             onClick={() => {
-              setPicked(null);
+              setDragging(null);
+              setHoverBin(null);
               onChange({ ...(value ?? { selected: null, choiceChecked: false }), answers: {}, checked: false });
             }}
           >
@@ -740,8 +809,15 @@ export function QuizActivity({
 }) {
   const answers = value?.answers ?? {};
   const submitted = Boolean(value?.submitted);
-  const score = QUIZ.filter((question) => answers[question.id] === question.answer).length;
-  const answeredCount = QUIZ.filter((question) => typeof answers[question.id] === "number").length;
+
+  // خلط خيارات كل سؤال بشكل ثابت، مع تحويل إجابات الطالب من الترتيب الأصلي إلى الترتيب المعروض
+  const prepared = QUIZ.map((question) => {
+    const ordered = shuffleOptions(question.options, question.answer, `quiz::${question.id}::${question.question}`);
+    return { ...question, displayOptions: ordered.options, displayAnswer: ordered.correctIndex };
+  });
+
+  const score = prepared.filter((question) => answers[question.id] === question.displayAnswer).length;
+  const answeredCount = prepared.filter((question) => typeof answers[question.id] === "number").length;
 
   return (
     <div className="space-y-4">
@@ -749,16 +825,16 @@ export function QuizActivity({
         <p className="text-base font-extrabold text-grape-700">📝 سبعة أسئلة — اختر الإجابة الصحيحة</p>
         <span className="rounded-full border-2 border-brand-200 bg-brand-50 px-3 py-1 text-sm font-extrabold text-brand-700">{toArabicDigits(answeredCount)} / {toArabicDigits(QUIZ.length)}</span>
       </div>
-      {QUIZ.map((question, index) => (
+      {prepared.map((question, index) => (
         <div key={question.id} className="act-card">
           <p className="mb-3 text-lg font-extrabold leading-7 text-brand-900">
             {toArabicDigits(index + 1)}. {question.question}
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {question.options.map((option, optionIndex) => {
+            {question.displayOptions.map((option, optionIndex) => {
               const isActive = answers[question.id] === optionIndex;
               const cls = submitted
-                ? optionIndex === question.answer
+                ? optionIndex === question.displayAnswer
                   ? "tile-correct"
                   : isActive
                     ? "tile-wrong"
@@ -783,8 +859,8 @@ export function QuizActivity({
             })}
           </div>
           {submitted ? (
-            <p className={`mt-2 text-base font-bold ${answers[question.id] === question.answer ? "text-[#067647]" : "text-[#b42318]"}`}>
-              {answers[question.id] === question.answer ? "✓ إجابة صحيحة. " : `✗ الإجابة الصحيحة: ${question.options[question.answer]} — `}
+            <p className={`mt-2 text-base font-bold ${answers[question.id] === question.displayAnswer ? "text-[#067647]" : "text-[#b42318]"}`}>
+              {answers[question.id] === question.displayAnswer ? "✓ إجابة صحيحة. " : `✗ الإجابة الصحيحة: ${question.displayOptions[question.displayAnswer]} — `}
               {question.explain}
             </p>
           ) : null}

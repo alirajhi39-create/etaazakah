@@ -56,7 +56,7 @@ export function activityRequirements(activities: ActivityMap | undefined): Activ
     { key: "meaningCheck", label: "سؤال معنى الزكاة", icon: "💡", done: meaning.checked === true },
     { key: "evidence", label: "آية الدليل وترتيب كلماتها", icon: "📖", done: evidenceSolved },
     { key: "virtue", label: "سؤال فضل الزكاة", icon: "🌻", done: virtue.checked === true },
-    { key: "sincerity", label: "تصنيف الإخلاص والمتابعة", icon: "💚", done: sinceritySolved },
+    { key: "sincerity", label: "تصنيف الإخلاص والمتابعة", icon: "🧩", done: sinceritySolved },
     { key: "warning", label: "نشاط الإضاءة", icon: "⚠️", done: warning.checked === true },
     { key: "saving", label: "طرق ادّخار المال", icon: "🏦", done: savingFilled >= 1 },
     { key: "evaluation", label: "أسئلة التقويم", icon: "✍️", done: evaluationFilled >= 2 },
